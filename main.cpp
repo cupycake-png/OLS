@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include "json.hpp"
+#include "LSPTypes.h"
 
 using json = nlohmann::json;
 
@@ -95,19 +96,9 @@ int main(){
             if(method == "initialize"){
                 log("INITIALISED SUCCESSFULLY");
 
-                json response = {
-                    {"jsonrpc", "2.0"},
-                    {"id", clientMessageJSON["id"]},
-                    {"result", {
-                        {"capabilities", {
-                            {"textDocumentSync", 1},
-                            {"hoverProvider", true},
-                            {"completionProvider", {{"resolveProvider", false}}}
-                        }}
-                    }}
-                };
+                InitialiseResponse response(clientMessageJSON["id"]);
 
-                sendMessage(response);
+                sendMessage(response.toJson());
             }
         }
     }
