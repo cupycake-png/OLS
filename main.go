@@ -94,7 +94,7 @@ func getLogger(filename string) *log.Logger {
 }
 
 func main() {
-	logger := getLogger("C:/Users/Charlie/Desktop/Programming/Go/OLS/logs.txt")
+	logger := getLogger("OLS_logs.txt")
 
 	logger.Println("Started language server")
 
