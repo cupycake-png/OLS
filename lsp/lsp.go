@@ -1,12 +1,14 @@
 package lsp
 
+import "os"
+
 type Message struct {
 	JSONRPC string `json:"jsonrpc"`
 }
 
 type RequestMessage struct {
 	Message
-	ID     int    `json:"id"`
+	ID     *int   `json:"id"`
 	Method string `json:"method"`
 }
 
@@ -583,6 +585,90 @@ type SemanticTokensFullRequest struct {
 	Params SemanticTokenParams `json:"params"`
 }
 
+type DiagnosticSeverity = int
+
+type CodeDescription struct {
+	HREF URI `json:"href"`
+}
+
+type DiagnosticTag = int
+
+type Location struct {
+	URI   DocumentURI `json:"uri"`
+	Range Range       `json:"range"`
+}
+
+type DiagnosticRelatedInformation struct {
+	Location Location `json:"location"`
+	Message  string   `json:"message"`
+}
+
+type Diagnostic struct {
+	Range              Range                           `json:"range"`
+	Severity           *DiagnosticSeverity             `json:"severity"`
+	Code               *string                         `json:"string"`
+	CodeDescription    *CodeDescription                `json:"codeDescription"`
+	Source             *string                         `json:"source"`
+	Message            string                          `json:"message"`
+	Tags               *[]DiagnosticTag                `json:"tags"`
+	RelatedInformation *[]DiagnosticRelatedInformation `json:"relatedInformation"`
+	Data               *string                         `json:"data"`
+}
+
+type PublishDiagnosticsParams struct {
+	URI         DocumentURI  `json:"uri"`
+	Version     *int         `json:"version"`
+	Diagnostics []Diagnostic `json:"diagnostics"`
+}
+
+type PublishDiagnosticsNotification struct {
+	NotificationMessage
+	PublishDiagnosticsParams
+}
+
+func NewInitialiseRequest(id int) InitialiseRequest {
+	PID := os.Getpid()
+	version := "1.0"
+	locale := "en"
+
+	return InitialiseRequest{
+		RequestMessage: RequestMessage{
+			Message: Message{
+				JSONRPC: "2.0",
+			},
+			ID:     &id,
+			Method: "initialize",
+		},
+
+		Params: InitialiseParams{
+			ProcessID: &PID,
+
+			ClientInfo: &ClientInfo{
+				Name:    "cupycode",
+				Version: &version,
+			},
+
+			Locale:                &locale,
+			RootPath:              nil,
+			RootURI:               nil,
+			InitialisationOptions: nil,
+
+			Capabilities: ClientCapabilities{
+				TextDocument: &TextDocumentClientCapabilities{
+					SemanticTokens: &SemanticTokensClientCapabilities{
+						TokenTypes:     []string{"namespace", "type", "class", "enum", "interface", "struct", "typeParameter", "parameter", "variable", "property", "enumMember", "event", "function", "method", "macro", "keyword", "modifier", "comment", "string", "number", "regexp", "operator", "decorator"},
+						TokenModifiers: []string{"declaration", "definition", "readonly", "static", "deprecated", "abstract", "async", "modification", "documentation", "defaultLibrary"},
+						Formats:        []TokenFormat{"relative"},
+					},
+				},
+			},
+
+			Trace:            nil,
+			WorkspaceFolders: nil,
+		},
+	}
+}
+
 func NewInitialiseResponse(id int, positionEncoding string, tokenTypes []string, tokenModifiers []string) InitialiseResponse {
 	openClose := true
 	change := 1
@@ -592,16 +678,19 @@ func NewInitialiseResponse(id int, positionEncoding string, tokenTypes []string,
 			Message: Message{
 				JSONRPC: "2.0",
 			},
+
 			ID: &id,
 		},
 
 		Result: InitialiseResult{
 			Capabilities: ServerCapabilities{
 				PositionEncoding: &positionEncoding,
+
 				TextDocumentSync: &TextDocumentSyncOptions{
 					OpenClose: &openClose,
 					Change:    &change,
 				},
+
 				SemanticTokensProvider: &SemanticTokensOptions{
 					Legend: SemanticTokensLegend{
 						TokenTypes:     tokenTypes,
@@ -613,6 +702,88 @@ func NewInitialiseResponse(id int, positionEncoding string, tokenTypes []string,
 				Name:    "OLS",
 				Version: "0.0",
 			},
+		},
+	}
+}
+
+func NewDidOpenTextDocumentNotification(path string, languageID string, version int, contents string) DidOpenTextDocumentNotification {
+	documentURI := "file://" + path
+
+	return DidOpenTextDocumentNotification{
+		NotificationMessage: NotificationMessage{
+			Message: Message{
+				JSONRPC: "2.0",
+			},
+
+			Method: "textDocument/didOpen",
+		},
+
+		Params: DidOpenTextDocumentParams{
+			TextDocument: TextDocumentItem{
+				URI:        documentURI,
+				LanguageID: languageID,
+				Version:    version,
+				Text:       contents,
+			},
+		},
+	}
+}
+
+func NewDidChangeTextDocumentNotification(path string, version int, changedLine int, lineLength int, newLine string) DidChangeTextDocumentNotification {
+	documentURI := "file://" + path
+
+	return DidChangeTextDocumentNotification{
+		NotificationMessage: NotificationMessage{
+			Message: Message{
+				JSONRPC: "2.0",
+			},
+
+			Method: "textDocument/didChange",
+		},
+
+		Params: DidChangeTextDocumentParams{
+			TextDocument: VersionedTextDocumentIdentifier{
+				TextDocumentIdentifier: TextDocumentIdentifier{
+					URI: documentURI,
+				},
+
+				Version: version,
+			},
+
+			ContentChanges: []TextDocumentContentChangeEvent{
+				{Range: Range{
+					Start: Position{
+						Line:      uint(changedLine - 1),
+						Character: 0,
+					},
+
+					End: Position{
+						Line:      uint(changedLine),
+						Character: 0,
+					},
+				},
+
+					Text: newLine,
+				},
+			},
+		},
+	}
+}
+
+func NewPublishDiagnosticsNotification(uri string, version int, diagnostics []Diagnostic) PublishDiagnosticsNotification {
+	return PublishDiagnosticsNotification{
+		NotificationMessage: NotificationMessage{
+			Message: Message{
+				JSONRPC: "2.0",
+			},
+
+			Method: "textDocument/publishDiagnostics",
+		},
+
+		PublishDiagnosticsParams: PublishDiagnosticsParams{
+			URI:         uri,
+			Version:     &version,
+			Diagnostics: diagnostics,
 		},
 	}
 }
